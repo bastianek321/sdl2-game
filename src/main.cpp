@@ -1,178 +1,307 @@
-#include "vectors.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
-#include <array>
-#include <chrono>
-#include <cstdint>
-#include <functional>
-#include <iomanip>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <set>
-#include <stdexcept>
 #include <string>
-#include <thread>
-#include <tuple>
 #include <vector>
+#include <iostream>
+#include <iomanip>
 
-void draw_o(std::shared_ptr<SDL_Renderer> r, std::array<double, 2> p, std::shared_ptr<SDL_Texture> tex, double w, double h, double a)
+/* GLOBAL VARIABLES */
+
+// screen size
+static const int WIDTH = 840;
+static const int HEIGHT = 680;
+
+// window that we'll be rendering to
+SDL_Window *window = NULL;
+
+// surface contained by that window
+SDL_Surface *surface = NULL;
+
+//The image we will load and show on the screen
+SDL_Texture *background = NULL;
+
+SDL_Texture *playerTexture = NULL;
+
+//The renderer
+SDL_Renderer *renderer;
+
+/* KEYBOARD INPUTS */
+enum KeyPress
 {
-    SDL_Rect dst_rect = {(int)(p[0] - w / 2), (int)(p[1] - h / 2), (int)w, (int)h};
-    SDL_RenderCopyEx(r.get(), tex.get(), NULL, &dst_rect, a, NULL, SDL_RendererFlip::SDL_FLIP_NONE);
+    KEY_PRESS_UP,
+    KEY_PRESS_DOWN,
+    KEY_PRESS_LEFT,
+    KEY_PRESS_RIGHT
+};
+
+/* INITIALIZES WINDOW */
+bool initialize()
+{
+    bool success = true;
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    {
+        printf("SDL could not initialize ! \n%s\n\n", SDL_GetError());
+        success = false;
+    }
+    else
+    {
+        // create window
+        window = SDL_CreateWindow("Dont know", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+        if (window == NULL)
+        {
+            /* to show the error SDL_GetError() */
+            printf("Window could not be created!");
+            success = false;
+        }
+        else
+        {
+            renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+            if (renderer == NULL)
+            {
+                printf("Renderer could not be created");
+                success = false;
+            }
+            else
+            {
+                //set basic draw color to white
+                SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+            }
+        }
+    }
+    return success;
 }
 
-class physical_c
+/* LOADS A JPG IMAGE BY PATH */
+SDL_Surface *loadImage(std::string path)
+{
+    SDL_Surface *image = IMG_Load(path.c_str());
+    if (image == NULL)
+    {
+        printf("ERROR DURING LOADING IMAGE");
+    }
+    return image;
+}
+
+SDL_Texture *loadTexture(std::string path)
+{
+    SDL_Texture *texture = NULL;
+    try
+    {
+        texture = SDL_CreateTextureFromSurface(renderer, loadImage(path));
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return texture;
+}
+
+/* LOADS MEDIA */
+bool loadMedia()
+{
+    bool success = true;
+    //get window surface
+    surface = SDL_GetWindowSurface(window);
+
+    //fill the surface with white
+    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0XFF, 0XFF, 0XFF));
+
+    playerTexture = loadTexture("data/player.jpg");
+    background = loadTexture("data/ambient.jpg");
+    if (background == NULL)
+    {
+        printf("Image doesnt exist");
+        success = false;
+    }
+    return success;
+}
+
+/* FREES RESOURCES */
+void cleanup()
+{
+    //Destroy window
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+
+    // quit sdl
+    // IMG_QUIT();
+    SDL_Quit();
+}
+
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+
+class Object
 {
 public:
-    std::array<double, 2> position;
-    std::array<double, 2> velocity;
-    std::array<double, 2> acceleration;
-
-    void update(double dt_f, std::function<void(physical_c *, std::array<double, 2> &pos, std::array<double, 2> &vel)> callback_f)
+    int x, y, w, h;
+    SDL_Texture *texture = loadTexture("data/wall.jpg");
+    SDL_Rect obstacle_rect;
+    Object()
     {
-        using namespace tp::operators;
-        std::cout << "acc: " << acceleration[0] << "," << acceleration[1] << " ||| " << velocity[0] << "," << velocity[1] << std::endl;
-        auto new_position = position + velocity * dt_f + velocity * acceleration * dt_f * dt_f * 0.5;
-        auto new_velocity = (velocity + acceleration * dt_f) * 0.94;
-        callback_f(this, new_position, new_velocity);
+    }
+    Object(int i_x, int i_y, int i_w, int i_h)
+    {
+        x = i_x;
+        y = i_y;
+        w = i_w;
+        h = i_h;
+        obstacle_rect.x = x;
+        obstacle_rect.y = y;
+        obstacle_rect.w = w;
+        obstacle_rect.h = h;
+    }
+
+    void draw()
+    {
+
+        SDL_RenderDrawRect(renderer, &obstacle_rect);
+        SDL_RenderCopy(renderer, texture, NULL, &obstacle_rect);
     }
 };
 
-class player_c : public physical_c
+class Player : public Object
 {
 public:
-    std::map<std::string, int> intentions;
-
-    player_c()
+    int old_x, old_y;
+    int hp;
+    SDL_Rect player_rect;
+    SDL_Texture *texture = loadTexture("data/player.jpg");
+    Player(int i_x, int i_y, int i_w, int i_h, int i_hp)
+        : Object(i_x, i_y, i_w, i_h)
     {
-        position = {0, 80};
-        velocity = {50, -4};
+        hp = i_hp;
+        old_x = i_x;
+        old_y = i_y;
     }
 
-    /**
- * applies and clears intentions
- * */
-    void apply_intent()
+    void draw()
     {
-        acceleration = {0, 50};
-        if (intentions.count("left"))
-            acceleration[0] += -100;
-        if (intentions.count("right"))
-            acceleration[0] += 100;
-
-        intentions.clear();
+        player_rect.x = x;
+        player_rect.y = y;
+        player_rect.w = w;
+        player_rect.h = h;
+        SDL_RenderDrawRect(renderer, &player_rect);
+        SDL_RenderCopy(renderer, texture, NULL, &player_rect);
     }
+};
+
+std::vector<Object> generate_obstacles()
+{
+    std::vector<Object> obstacles;
+    Object obstacle(200, 50, 200, 200);
+    obstacles.push_back(obstacle);
+    Object obstacle2(450, 300, 100, 150);
+    obstacles.push_back(obstacle2);
+
+    return obstacles;
+}
+void draw_obstacles(std::vector<Object> obstacles)
+{
+    for (Object obstacle : obstacles)
+    {
+        obstacle.draw();
+    }
+}
+
+bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
+{
+    bool collision = false;
+    for (Object obstacle : obstacles)
+    {
+        if (SDL_HasIntersection(&player.player_rect, &obstacle.obstacle_rect))
+        {
+            std::cout << "jest" << std::endl;
+            collision = true;
+            return collision;
+        }
+        std::cout << "przerwa" << std::endl;
+    }
+    return collision;
 };
 
 int main(int, char **)
 {
-    using namespace std;
-    using namespace std::chrono;
-    using namespace tp::operators;
-
-    SDL_Init(SDL_INIT_EVERYTHING);
-    IMG_Init(IMG_INIT_PNG);
-    shared_ptr<SDL_Window> window_p(
-        SDL_CreateWindow("Better Worms", SDL_WINDOWPOS_UNDEFINED,
-                         SDL_WINDOWPOS_UNDEFINED, 640, 360, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE),
-        [](auto *window) { SDL_DestroyWindow(window); });
-
-    shared_ptr<SDL_Renderer> renderer_p(
-        SDL_CreateRenderer(&*window_p, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
-        [](auto *renderer) {
-            SDL_DestroyRenderer(renderer);
-        });
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-    SDL_RenderSetLogicalSize(&*renderer_p, 320, 180);
-
-    shared_ptr<SDL_Texture> tex_p(IMG_LoadTexture(&*renderer_p, "data/player.png"),
-                                  [](auto *tex) { SDL_DestroyTexture(tex); });
-
-    player_c player;
-
-    milliseconds dt(15);
-    steady_clock::time_point current_time = steady_clock::now(); // remember current time
-
-    int mouse_x = 0;
-    int mouse_x2 = 0;
-    int mouse_y = 0;
-    int mouse_y2 = 0;
-    int clicks = 0;
-    bool render = false;
-
-    for (bool game_active = true; game_active;)
+    if (!initialize())
     {
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        { // check if there are some events
-            if (event.type == SDL_QUIT)
-                game_active = false;
-            if (event.type == SDL_MOUSEBUTTONDOWN)
+        printf("ERROR DURING INITIALIZATION");
+    }
+    if (!loadMedia())
+    {
+        printf("ERROR DURING LOADING MEDIA");
+    }
+
+    //main loop variables
+    bool running = true;
+    SDL_Event e;
+
+    Player player(100, 100, 50, 50, 150);
+    std::vector<Object> obstacles = generate_obstacles();
+
+    while (running)
+    {
+        //todo
+
+        while (SDL_PollEvent(&e) != 0)
+        {
+            if (e.type == SDL_QUIT)
             {
-                if (clicks == 0)
+                running = false;
+            }
+            else if (e.type == SDL_KEYDOWN)
+            {
+                switch (e.key.keysym.sym)
                 {
-                    mouse_x = event.button.x;
-                    mouse_y = event.button.y;
-                    clicks += 1;
-                }
-                else if (clicks == 1)
-                {
-                    mouse_x2 = event.button.x;
-                    mouse_y2 = event.button.y;
-                    clicks += 1;
-                    render = true;
-                }
-                else if (clicks == 2){
-                    clicks = 0;
-                    render = false;
+                case SDLK_UP:
+                    player.old_y = player.y;
+                    player.y -= 5;
+                    break;
+                case SDLK_DOWN:
+                    player.old_y = player.y;
+                    player.y += 5;
+                    break;
+                case SDLK_LEFT:
+                    player.old_x = player.x;
+                    player.x -= 5;
+                    break;
+                case SDLK_RIGHT:
+                    player.old_x = player.x;
+                    player.x += 5;
+                    break;
                 }
             }
         }
-        auto kbdstate = SDL_GetKeyboardState(NULL);
-        if (kbdstate[SDL_SCANCODE_LEFT])
-            player.intentions["left"] = 1;
-        if (kbdstate[SDL_SCANCODE_RIGHT])
-            player.intentions["right"] = 1;
-        //for (auto [k,v] : player.intentions) {
-        //    std::cout << "[" << k << ":" << v << "] ";
-        //}
-        //std::cout << std::endl;
-        //    if (kbdstate[SDL_SCANCODE_RIGHT])
+        // clears the renderer
+        SDL_RenderClear(renderer);
 
-        /// fizyka
-        // double dt_f = dt.count() / 1000.0;
-        // player.apply_intent();
-        // player.update(dt_f, [&](auto p, auto pos, auto vel){
-        //     if (pos[1] < 150) {
-        //         p->position = pos;
-        //         p->velocity = vel;
-        //     } else {
-        //         p->velocity = {vel[0],0};
-        //         p->position[0] = pos[0];
-        //     }
-        // });
-        /// grafika
-        SDL_SetRenderDrawColor(&*renderer_p, 0, 100, 20, 255);
-        SDL_RenderClear(&*renderer_p);
-        SDL_SetRenderDrawColor(&*renderer_p, 255, 100, 200, 255);
-        // SDL_RenderCopy(&*renderer_p, &*tex_p, NULL, NULL);
-        // draw_o(renderer_p, player.position, tex_p, 16, 16, 30);
-        //draw_o(&*renderer_p,{50,20},&*tex_p,16,16,30);
-        SDL_Rect rect;
-        rect.x = mouse_x;
-        rect.y = mouse_y;
-        rect.h = mouse_y2 - mouse_y;
-        rect.w = mouse_x2 - mouse_x;
-        if (render)
-        {
-            SDL_RenderDrawRect(&*renderer_p, &rect);
+        // copies the texture to the whole window, hence two NULLS
+        SDL_RenderCopy(renderer, background, NULL, NULL);
+
+        SDL_SetRenderDrawColor(renderer, 0X88, 0XAF, 0XCF, 0X0F);
+
+        // draws rectangle defined earlier
+        if(check_obstacle_collision(player, obstacles)){
+            player.x = player.old_x;
+            player.y = player.old_y;
         }
-        SDL_RenderPresent(&*renderer_p);
-        SDL_RenderClear(&*renderer_p);
-        this_thread::sleep_until(current_time = current_time + dt);
+        draw_obstacles(obstacles);
+        player.draw();
+
+        // updates the screen
+        SDL_RenderPresent(renderer);
+
+        //blitsurface
+        //update the surface
+        // SDL_UpdateWindowSurface(window);
     }
-    SDL_Quit();
+
+    cleanup();
+
     return 0;
 }
