@@ -134,23 +134,26 @@ void cleanup()
 class Object
 {
 public:
-    int x, y, w, h;
+    std::array<double, 2> position;
+    std::array<double, 2> size;
+    std::array<double, 2> velocity;
+    std::array<double, 2> acceleration;
     SDL_Texture *texture;
     SDL_Rect rect;
     Object()
     {
     }
-    Object(int i_x, int i_y, int i_w, int i_h)
+    Object(double i_x, double i_y, double i_w, double i_h)
     {
         texture = loadTexture("data/wall.jpg");
-        x = i_x;
-        y = i_y;
-        w = i_w;
-        h = i_h;
-        rect.x = x;
-        rect.y = y;
-        rect.w = w;
-        rect.h = h;
+        position.at(0) = i_x;
+        position.at(1) = i_y;
+        size.at(0) = i_w;
+        size.at(1) = i_h;
+        rect.x = i_x;
+        rect.y = i_y;
+        rect.w = i_w;
+        rect.h = i_h;
     }
 
     void draw()
@@ -164,26 +167,31 @@ public:
 class Player : public Object
 {
 public:
-    int old_x, old_y;
+    std::array<double, 2> old_position;
     int hp;
-    Player(int i_x, int i_y, int i_w, int i_h, int i_hp)
+    // SDL_Rect hp_bar;
+    Player(double i_x, double i_y, double i_w, double i_h, double i_hp)
         : Object(i_x, i_y, i_w, i_h)
     {
         texture = loadTexture("data/player.jpg");
         hp = i_hp;
-        old_x = i_x;
-        old_y = i_y;
+        old_position.at(0) = i_x;
+        old_position.at(1) = i_y;
     }
 
     void draw()
     {
-        rect.x = x;
-        rect.y = y;
-        rect.w = w;
-        rect.h = h;
+        rect.x = position.at(0);
+        rect.y = position.at(1);
+        rect.w = size.at(0);
+        rect.h = size.at(1);
+        SDL_SetRenderDrawColor(renderer, 0XFF, 0X00, 0X00, 1);
+        SDL_RenderDrawLine(renderer, position.at(0), position.at(1) - 15, position.at(0) + hp, position.at(1) - 15);
+        // SDL_RenderDrawRect(renderer, &hp_bar);
         SDL_RenderDrawRect(renderer, &rect);
         SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
+
 };
 
 std::vector<Object> generate_obstacles()
@@ -207,7 +215,7 @@ void draw_obstacles(std::vector<Object> obstacles)
 bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
 {
     bool collision = false;
-    if(player.x == 0 || player.x + player.w == WIDTH || player.y == 0 || player.y + player.h == HEIGHT){
+    if(player.position.at(0) == 0 || player.position.at(0) + player.size.at(0) == WIDTH || player.position.at(1) == 0 || player.position.at(1) + player.size.at(1) == HEIGHT){
         collision = true;
         return collision;
     }
@@ -230,6 +238,7 @@ bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 
+
 class Bullet : public Object 
 {
 public:
@@ -242,10 +251,11 @@ public:
 
     void draw()
     {
-        rect.x = x;
-        rect.y = y;
-        rect.w = w;
-        rect.h = h;
+        rect.x = position.at(0);
+        rect.y = position.at(1);
+        rect.w = size.at(0);
+        rect.h = size.at(1);
+        SDL_SetRenderDrawColor(renderer, 0X0F, 0X5F, 0X3F, 255);
         SDL_RenderFillRect(renderer, &rect);
         SDL_RenderDrawRect(renderer, &rect);
     }
@@ -266,7 +276,7 @@ int main(int, char **)
     bool running = true;
     SDL_Event e;
 
-    Player player(100, 100, 50, 50, 150);
+    Player player(100, 100, 50, 50, 50);
     std::vector<Object> obstacles = generate_obstacles();
 
     while (running)
@@ -284,20 +294,23 @@ int main(int, char **)
                 switch (e.key.keysym.sym)
                 {
                 case SDLK_UP:
-                    player.old_y = player.y;
-                    player.y -= 5;
+                    player.old_position.at(1) = player.position.at(1);
+                    player.position.at(1) -= 5;
                     break;
                 case SDLK_DOWN:
-                    player.old_y = player.y;
-                    player.y += 5;
+                    player.old_position.at(1) = player.position.at(1);
+                    player.position.at(1) += 5;
                     break;
                 case SDLK_LEFT:
-                    player.old_x = player.x;
-                    player.x -= 5;
+                    player.old_position.at(0) = player.position.at(0);
+                    player.position.at(0) -= 5;
                     break;
                 case SDLK_RIGHT:
-                    player.old_x = player.x;
-                    player.x += 5;
+                    player.old_position.at(0) = player.position.at(0);
+                    player.position.at(0) += 5;
+                    break;
+                case SDLK_j:
+                    player.hp -= 5;
                     break;
                 }
             }
@@ -312,9 +325,10 @@ int main(int, char **)
 
         // draws rectangle defined earlier
         if(check_obstacle_collision(player, obstacles)){
-            player.x = player.old_x;
-            player.y = player.old_y;
+            player.position.at(0) = player.old_position.at(0);
+            player.position.at(1) = player.old_position.at(1);
         }
+        if(player.hp <= 0) running = false;
         draw_obstacles(obstacles);
         player.draw();
 
