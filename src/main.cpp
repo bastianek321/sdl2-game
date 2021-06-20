@@ -169,7 +169,7 @@ class Player : public Object
 public:
     std::array<double, 2> old_position;
     int hp;
-    // SDL_Rect hp_bar;
+    SDL_Rect hp_bar;
     Player(double i_x, double i_y, double i_w, double i_h, double i_hp)
         : Object(i_x, i_y, i_w, i_h)
     {
@@ -179,6 +179,13 @@ public:
         old_position.at(1) = i_y;
     }
 
+    void update_hp_bar(double new_hp){
+        hp_bar.x = position.at(0);
+        hp_bar.y = position.at(1) - 15;
+        hp_bar.w = new_hp;
+        hp_bar.h = 10;
+    }
+
     void draw()
     {
         rect.x = position.at(0);
@@ -186,8 +193,9 @@ public:
         rect.w = size.at(0);
         rect.h = size.at(1);
         SDL_SetRenderDrawColor(renderer, 0XFF, 0X00, 0X00, 1);
-        SDL_RenderDrawLine(renderer, position.at(0), position.at(1) - 15, position.at(0) + hp, position.at(1) - 15);
-        // SDL_RenderDrawRect(renderer, &hp_bar);
+        update_hp_bar(hp);
+        SDL_RenderFillRect(renderer, &hp_bar);
+        SDL_RenderDrawRect(renderer, &hp_bar);
         SDL_RenderDrawRect(renderer, &rect);
         SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
