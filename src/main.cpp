@@ -130,39 +130,34 @@ void cleanup()
     SDL_Quit();
 }
 
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 
 class Object
 {
 public:
     int x, y, w, h;
-    SDL_Texture *texture = loadTexture("data/wall.jpg");
-    SDL_Rect obstacle_rect;
+    SDL_Texture *texture;
+    SDL_Rect rect;
     Object()
     {
     }
     Object(int i_x, int i_y, int i_w, int i_h)
     {
+        texture = loadTexture("data/wall.jpg");
         x = i_x;
         y = i_y;
         w = i_w;
         h = i_h;
-        obstacle_rect.x = x;
-        obstacle_rect.y = y;
-        obstacle_rect.w = w;
-        obstacle_rect.h = h;
+        rect.x = x;
+        rect.y = y;
+        rect.w = w;
+        rect.h = h;
     }
 
     void draw()
     {
 
-        SDL_RenderDrawRect(renderer, &obstacle_rect);
-        SDL_RenderCopy(renderer, texture, NULL, &obstacle_rect);
+        SDL_RenderDrawRect(renderer, &rect);
+        SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
 };
 
@@ -171,11 +166,10 @@ class Player : public Object
 public:
     int old_x, old_y;
     int hp;
-    SDL_Rect player_rect;
-    SDL_Texture *texture = loadTexture("data/player.jpg");
     Player(int i_x, int i_y, int i_w, int i_h, int i_hp)
         : Object(i_x, i_y, i_w, i_h)
     {
+        texture = loadTexture("data/player.jpg");
         hp = i_hp;
         old_x = i_x;
         old_y = i_y;
@@ -183,12 +177,12 @@ public:
 
     void draw()
     {
-        player_rect.x = x;
-        player_rect.y = y;
-        player_rect.w = w;
-        player_rect.h = h;
-        SDL_RenderDrawRect(renderer, &player_rect);
-        SDL_RenderCopy(renderer, texture, NULL, &player_rect);
+        rect.x = x;
+        rect.y = y;
+        rect.w = w;
+        rect.h = h;
+        SDL_RenderDrawRect(renderer, &rect);
+        SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
 };
 
@@ -213,17 +207,48 @@ void draw_obstacles(std::vector<Object> obstacles)
 bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
 {
     bool collision = false;
+    if(player.x == 0 || player.x + player.w == WIDTH || player.y == 0 || player.y + player.h == HEIGHT){
+        collision = true;
+        return collision;
+    }
+
     for (Object obstacle : obstacles)
     {
-        if (SDL_HasIntersection(&player.player_rect, &obstacle.obstacle_rect))
+        if (SDL_HasIntersection(&player.rect, &obstacle.rect))
         {
-            std::cout << "jest" << std::endl;
             collision = true;
             return collision;
         }
-        std::cout << "przerwa" << std::endl;
     }
     return collision;
+};
+
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+
+class Bullet : public Object 
+{
+public:
+    int dmg;
+    Bullet(int i_x, int i_y, int i_w, int i_h, int i_dmg)
+        : Object(i_x, i_y, i_w, i_h)
+    {
+        dmg = i_dmg;
+    }
+
+    void draw()
+    {
+        rect.x = x;
+        rect.y = y;
+        rect.w = w;
+        rect.h = h;
+        SDL_RenderFillRect(renderer, &rect);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
 };
 
 int main(int, char **)
