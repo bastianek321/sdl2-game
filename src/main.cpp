@@ -1,11 +1,20 @@
+#include "vectors.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 
 /* GLOBAL VARIABLES */
+class Player;
+class Object;
+bool check_obstacle_collision(Player player, std::vector<Object> obstacles);
+bool check_player_left_collision(Player player, std::vector<Object> obstacles);
+bool check_player_right_collision(Player player, std::vector<Object> obstacles);
+bool check_player_top_collision(Player player, std::vector<Object> obstacles);
+bool check_player_bottom_collision(Player player, std::vector<Object> obstacles);
 
 // screen size
 static const int WIDTH = 840;
@@ -130,14 +139,12 @@ void cleanup()
     SDL_Quit();
 }
 
-
 class Object
 {
 public:
     std::array<double, 2> position;
     std::array<double, 2> size;
-    std::array<double, 2> velocity;
-    std::array<double, 2> acceleration;
+
     SDL_Texture *texture;
     SDL_Rect rect;
     Object()
@@ -150,15 +157,14 @@ public:
         position.at(1) = i_y;
         size.at(0) = i_w;
         size.at(1) = i_h;
-        rect.x = i_x;
-        rect.y = i_y;
-        rect.w = i_w;
-        rect.h = i_h;
+        rect.x = position.at(0);
+        rect.y = position.at(1);
+        rect.w = size.at(0);
+        rect.h = size.at(1);
     }
 
     void draw()
     {
-
         SDL_RenderDrawRect(renderer, &rect);
         SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
@@ -168,30 +174,65 @@ class Player : public Object
 {
 public:
     std::array<double, 2> old_position;
+    std::array<double, 2> velocity;
+    std::array<double, 2> acceleration;
+    double friction;
     int hp;
     SDL_Rect hp_bar;
-    Player(double i_x, double i_y, double i_w, double i_h, double i_hp)
+
+    Player(double i_x, double i_y, double i_w, double i_h)
         : Object(i_x, i_y, i_w, i_h)
     {
         texture = loadTexture("data/player.jpg");
-        hp = i_hp;
+        hp = 50;
         old_position.at(0) = i_x;
         old_position.at(1) = i_y;
+        friction = 0.3;
+        rect.w = size.at(0);
+        rect.h = size.at(1);
     }
 
-    void update_hp_bar(double new_hp){
+    void update_hp_bar(double new_hp)
+    {
         hp_bar.x = position.at(0);
         hp_bar.y = position.at(1) - 15;
         hp_bar.w = new_hp;
         hp_bar.h = 10;
     }
 
-    void draw()
+    void update(double dt_f, std::vector<Object> obstacles)
     {
+        using namespace tp::operators;
+        // apply friction:
+        auto new_acceleration = acceleration - velocity * length(velocity);
+        auto new_velocity = velocity + new_acceleration * dt_f;
+        auto new_position = position + new_velocity * dt_f + new_acceleration * dt_f * dt_f * 0.5;
+        old_position = position;
+        velocity = new_velocity;
+        if(velocity.at(0) < 0 && check_player_left_collision(*this, obstacles)){
+            velocity.at(0) = 0;
+            new_position.at(0) = position.at(0);
+        }
+        if(velocity.at(0) > 0 && check_player_right_collision(*this, obstacles)){
+            velocity.at(0) = 0;
+            new_position.at(0) = position.at(0);
+        }
+        if(velocity.at(1) < 0 && check_player_top_collision(*this, obstacles)){
+            velocity.at(1) = 0;
+            new_position.at(1) = position.at(1);
+        }
+        if(velocity.at(1) > 0 && check_player_bottom_collision(*this, obstacles)){
+            velocity.at(1) = 0;
+            new_position.at(1) = position.at(1);
+        }
+        position = new_position;
+        acceleration = new_acceleration;
         rect.x = position.at(0);
         rect.y = position.at(1);
-        rect.w = size.at(0);
-        rect.h = size.at(1);
+    }
+
+    void p_draw()
+    {
         SDL_SetRenderDrawColor(renderer, 0XFF, 0X00, 0X00, 1);
         update_hp_bar(hp);
         SDL_RenderFillRect(renderer, &hp_bar);
@@ -199,7 +240,6 @@ public:
         SDL_RenderDrawRect(renderer, &rect);
         SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
-
 };
 
 std::vector<Object> generate_obstacles()
@@ -220,24 +260,93 @@ void draw_obstacles(std::vector<Object> obstacles)
     }
 }
 
-bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
-{
-    bool collision = false;
-    if(player.position.at(0) == 0 || player.position.at(0) + player.size.at(0) == WIDTH || player.position.at(1) == 0 || player.position.at(1) + player.size.at(1) == HEIGHT){
-        collision = true;
-        return collision;
+bool check_player_left_collision(Player player, std::vector<Object> obstacles){
+    SDL_Rect left_rect;
+    left_rect.x = player.position.at(0) - 5;
+    left_rect.y = player.position.at(1);
+    left_rect.w = player.size.at(0);
+    left_rect.h = player.size.at(1);
+
+    if (left_rect.x == 0)
+    {
+        return true;
     }
 
     for (Object obstacle : obstacles)
     {
-        if (SDL_HasIntersection(&player.rect, &obstacle.rect))
+        if (SDL_HasIntersection(&left_rect, &obstacle.rect))
         {
-            collision = true;
-            return collision;
+            return true;
         }
     }
-    return collision;
-};
+    return false;
+
+}
+
+bool check_player_right_collision(Player player, std::vector<Object> obstacles){
+    SDL_Rect right_rect;
+    right_rect.x = player.position.at(0) + 5;
+    right_rect.y = player.position.at(1);
+    right_rect.w = player.size.at(0);
+    right_rect.h = player.size.at(1);
+
+    if(right_rect.x + right_rect.w >= WIDTH){
+        return true;
+    }
+
+    for (Object obstacle : obstacles)
+    {
+        if (SDL_HasIntersection(&right_rect, &obstacle.rect))
+        {
+            return true;
+        }
+    }
+    return false;
+
+}
+
+bool check_player_top_collision(Player player, std::vector<Object> obstacles){
+    SDL_Rect top_rect;
+    top_rect.x = player.position.at(0);
+    top_rect.y = player.position.at(1) - 5;
+    top_rect.w = player.size.at(0);
+    top_rect.h = player.size.at(1);
+
+    if(top_rect.y == 0){
+        return true;
+    }
+
+    for (Object obstacle : obstacles)
+    {
+        if (SDL_HasIntersection(&top_rect, &obstacle.rect))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool check_player_bottom_collision(Player player, std::vector<Object> obstacles){
+    SDL_Rect bottom_rect;
+    bottom_rect.x = player.position.at(0);
+    bottom_rect.y = player.position.at(1) + 5;
+    bottom_rect.w = player.size.at(0);
+    bottom_rect.h = player.size.at(1);
+
+    if(bottom_rect.y + bottom_rect.h >= HEIGHT){
+        return true;
+    }
+
+    for (Object obstacle : obstacles)
+    {
+        if (SDL_HasIntersection(&bottom_rect, &obstacle.rect))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
@@ -246,8 +355,7 @@ bool check_obstacle_collision(Player player, std::vector<Object> obstacles)
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 
-
-class Bullet : public Object 
+class Bullet : public Object
 {
 public:
     int dmg;
@@ -271,6 +379,7 @@ public:
 
 int main(int, char **)
 {
+
     if (!initialize())
     {
         printf("ERROR DURING INITIALIZATION");
@@ -284,12 +393,20 @@ int main(int, char **)
     bool running = true;
     SDL_Event e;
 
-    Player player(100, 100, 50, 50, 50);
+    Player player(100, 150, 50, 50);
     std::vector<Object> obstacles = generate_obstacles();
+    std::chrono::milliseconds timer(15);
 
     while (running)
     {
-        //todo
+        double dt_f = timer.count() / 1000.0;
+        // std::cout << player.acceleration.at(0) << std::endl;
+        // std::cout << player.acceleration.at(1) << std::endl;
+        // std::cout << std::endl;
+        std::cout << player.velocity.at(0) << std::endl;
+        std::cout << player.velocity.at(1) + player.size.at(1) << std::endl;
+        // std::cout << std::endl;
+        player.acceleration = {0, 5};
 
         while (SDL_PollEvent(&e) != 0)
         {
@@ -299,27 +416,28 @@ int main(int, char **)
             }
             else if (e.type == SDL_KEYDOWN)
             {
-                switch (e.key.keysym.sym)
+                if (e.key.keysym.sym == SDLK_UP)
                 {
-                case SDLK_UP:
-                    player.old_position.at(1) = player.position.at(1);
-                    player.position.at(1) -= 5;
-                    break;
-                case SDLK_DOWN:
-                    player.old_position.at(1) = player.position.at(1);
-                    player.position.at(1) += 5;
-                    break;
-                case SDLK_LEFT:
-                    player.old_position.at(0) = player.position.at(0);
-                    player.position.at(0) -= 5;
-                    break;
-                case SDLK_RIGHT:
-                    player.old_position.at(0) = player.position.at(0);
-                    player.position.at(0) += 5;
-                    break;
-                case SDLK_j:
+                    player.acceleration.at(1) -= 3500;
+                }
+                if (e.key.keysym.sym == SDLK_DOWN)
+                {
+                    player.acceleration.at(1) += 500;
+                }
+                if (e.key.keysym.sym == SDLK_LEFT)
+                {
+                    player.acceleration.at(0) -= 500;
+                }
+                if (e.key.keysym.sym == SDLK_RIGHT)
+                {
+                    player.acceleration.at(0) += 500;
+                }
+                if (e.key.keysym.sym == SDLK_j)
+                {
                     player.hp -= 5;
-                    break;
+                }
+                if(e.key.keysym.sym == SDLK_SPACE){
+                    player.velocity.at(1) -= 10;
                 }
             }
         }
@@ -332,20 +450,20 @@ int main(int, char **)
         SDL_SetRenderDrawColor(renderer, 0X88, 0XAF, 0XCF, 0X0F);
 
         // draws rectangle defined earlier
-        if(check_obstacle_collision(player, obstacles)){
-            player.position.at(0) = player.old_position.at(0);
-            player.position.at(1) = player.old_position.at(1);
-        }
-        if(player.hp <= 0) running = false;
+
+        if (player.hp <= 0)
+            running = false;
         draw_obstacles(obstacles);
-        player.draw();
+        player.update(dt_f, obstacles);
+        // if (check_obstacle_collision(player, obstacles))
+        // {
+        //     player.position.at(0) = player.old_position.at(0);
+        //     player.position.at(1) = player.old_position.at(1);
+        // }
+        player.p_draw();
 
         // updates the screen
         SDL_RenderPresent(renderer);
-
-        //blitsurface
-        //update the surface
-        // SDL_UpdateWindowSurface(window);
     }
 
     cleanup();
