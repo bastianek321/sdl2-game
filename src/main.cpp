@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+#include <map>
 
 /* GLOBAL VARIABLES */
 class Player;
@@ -176,6 +177,7 @@ public:
     std::array<double, 2> old_position;
     std::array<double, 2> velocity;
     std::array<double, 2> acceleration;
+    std::string move;
     double friction;
     int hp;
     SDL_Rect hp_bar;
@@ -187,9 +189,19 @@ public:
         hp = 50;
         old_position.at(0) = i_x;
         old_position.at(1) = i_y;
-        friction = 0.3;
+        friction = 0.5;
         rect.w = size.at(0);
         rect.h = size.at(1);
+    }
+
+    void apply_intent()
+    {
+        acceleration = {0, 10};
+        if (move == "right") acceleration[0] += 1000;
+        if (move == "left") acceleration[0] += -1000;
+        if (move == "up") acceleration[1] += -4500;
+        if (move == "down") acceleration[1] += +1000;
+        move = " ";
     }
 
     void update_hp_bar(double new_hp)
@@ -204,7 +216,7 @@ public:
     {
         using namespace tp::operators;
         // apply friction:
-        auto new_acceleration = acceleration - velocity * length(velocity);
+        auto new_acceleration = acceleration - velocity * length(velocity) * friction;
         auto new_velocity = velocity + new_acceleration * dt_f;
         auto new_position = position + new_velocity * dt_f + new_acceleration * dt_f * dt_f * 0.5;
         old_position = position;
@@ -404,9 +416,8 @@ int main(int, char **)
         // std::cout << player.acceleration.at(1) << std::endl;
         // std::cout << std::endl;
         std::cout << player.velocity.at(0) << std::endl;
-        std::cout << player.velocity.at(1) + player.size.at(1) << std::endl;
+        std::cout << player.velocity.at(1) << std::endl;
         // std::cout << std::endl;
-        player.acceleration = {0, 5};
 
         while (SDL_PollEvent(&e) != 0)
         {
@@ -418,19 +429,19 @@ int main(int, char **)
             {
                 if (e.key.keysym.sym == SDLK_UP)
                 {
-                    player.acceleration.at(1) -= 3500;
+                    player.move = "up";
                 }
                 if (e.key.keysym.sym == SDLK_DOWN)
                 {
-                    player.acceleration.at(1) += 500;
+                    player.move = "down";
                 }
                 if (e.key.keysym.sym == SDLK_LEFT)
                 {
-                    player.acceleration.at(0) -= 500;
+                    player.move = "left";
                 }
                 if (e.key.keysym.sym == SDLK_RIGHT)
                 {
-                    player.acceleration.at(0) += 500;
+                    player.move = "right";
                 }
                 if (e.key.keysym.sym == SDLK_j)
                 {
@@ -454,12 +465,8 @@ int main(int, char **)
         if (player.hp <= 0)
             running = false;
         draw_obstacles(obstacles);
+        player.apply_intent();
         player.update(dt_f, obstacles);
-        // if (check_obstacle_collision(player, obstacles))
-        // {
-        //     player.position.at(0) = player.old_position.at(0);
-        //     player.position.at(1) = player.old_position.at(1);
-        // }
         player.p_draw();
 
         // updates the screen
