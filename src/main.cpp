@@ -267,9 +267,11 @@ public:
 class Trap : public Object
 {
 public:
+    int dmg;
     Trap(int i_x, int i_y, int i_w, int i_h)
         : Object(i_x, i_y, i_w, i_h)
     {
+        texture = loadTexture("data/trap.png");
     }
 
     void t_draw()
@@ -279,29 +281,46 @@ public:
         rect.w = size.at(0);
         rect.h = size.at(1);
         SDL_SetRenderDrawColor(renderer, 0X0F, 0X5F, 0X3F, 255);
-        SDL_RenderFillRect(renderer, &rect);
         SDL_RenderDrawRect(renderer, &rect);
+        SDL_RenderCopy(renderer, texture, NULL, &rect);
     }
 };
 
 std::vector<Object> generate_obstacles()
 {
     std::vector<Object> obstacles;
-    Object obstacle(200, 50, 200, 200);
+    Object obstacle(0, 80, 200, 100); // 1
     obstacles.push_back(obstacle);
-    Object obstacle2(450, 300, 100, 150);
+    Object obstacle2(280, 0, 100, 270); // 2
     obstacles.push_back(obstacle2);
-
+    Object obstacle3(100, 270, 280, 100); // 3
+    obstacles.push_back(obstacle3);
+    Object obstacle4(100, 370, 100, 200); // 4
+    obstacles.push_back(obstacle4);
+    Object obstacle5(280, 475, 300, 100); // 5
+    obstacles.push_back(obstacle5);
+    Object obstacle6(480, 100, 100, 380); // 6
+    obstacles.push_back(obstacle6);
+    Object obstacle7(680, 0, 100, 580); // 7
+    obstacles.push_back(obstacle7);
     return obstacles;
 }
 
 std::vector<Trap> generate_traps()
 {
     std::vector<Trap> traps;
-    Trap trap1(0, 0, 30, 30);
+    Trap trap1(200, 0, 80, 80);
     traps.push_back(trap1);
-    Trap trap2(300, 50, 30, 30);
+    Trap trap2(100, 180, 80, 90);
     traps.push_back(trap2);
+    Trap trap3(0, 320, 100, 90);
+    traps.push_back(trap3);
+    Trap trap4(280, 570, 300, 110);
+    traps.push_back(trap4);
+    Trap trap5(480, 0, 100, 100);
+    traps.push_back(trap5);
+    Trap trap6(680, 580, 100, 100);
+    traps.push_back(trap6);
     return traps;
 }
 
@@ -425,10 +444,31 @@ bool check_player_trap_collision(Player player, std::vector<Trap> traps)
     {
         if (SDL_HasIntersection(&player_rect, &trap.rect))
         {
+            player.hp -= trap.dmg;
             return true;
         }
     }
     return false;
+}
+
+bool check_player_win(Player player)
+{
+    if (player.position.at(0) > 780 && player.position.at(1) < 10)
+    {
+        return true;
+    }
+    return false;
+}
+
+void draw_win_tile()
+{
+    SDL_Rect win_rect;
+    SDL_SetRenderDrawColor(renderer, 0X00, 0XFF, 0X00, 100);
+    win_rect.x = WIDTH - 60;
+    win_rect.y = 0;
+    win_rect.h = 60;
+    win_rect.w = 60;
+    SDL_RenderDrawRect(renderer, &win_rect);
 }
 
 /* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
@@ -450,7 +490,7 @@ int main(int, char **)
     bool running = true;
     SDL_Event e;
 
-    Player player(100, 150, 50, 50);
+    Player player(10, 10, 50, 50);
     std::vector<Object> obstacles = generate_obstacles();
     std::vector<Trap> traps = generate_traps();
     std::vector<Trap> show_traps = traps;
@@ -467,10 +507,10 @@ int main(int, char **)
         {
             iterations = 0;
         }
-        if(hit)
+        if (hit)
         {
             damage_cooldown += 1;
-            if (damage_cooldown >= 1500)
+            if (damage_cooldown >= 2000)
             {
                 damage_cooldown = 0;
                 hit = false;
@@ -478,12 +518,6 @@ int main(int, char **)
         }
 
         double dt_f = timer.count() / 1000.0;
-        std::cout << damage_cooldown << std::endl;
-        std::cout << hit << std::endl;
-        // std::cout << std::endl;
-        // std::cout << player.velocity.at(0) << std::endl;
-        // std::cout << player.velocity.at(1) << std::endl;
-        // std::cout << std::endl;
 
         while (SDL_PollEvent(&e) != 0)
         {
@@ -509,10 +543,6 @@ int main(int, char **)
                 {
                     player.move = "right";
                 }
-                if (e.key.keysym.sym == SDLK_j)
-                {
-                    player.hp -= 5;
-                }
             }
         }
         // clears the renderer
@@ -526,8 +556,17 @@ int main(int, char **)
         // draws rectangle defined earlier
 
         if (player.hp <= 0)
+        {
+            std::cout << "Przegrales" << std::endl;
             running = false;
+        }
+        if (check_player_win(player))
+        {
+            std::cout << "Wygrales" << std::endl;
+            running = false;
+        }
         draw_obstacles(obstacles);
+        draw_win_tile();
         player.apply_intent();
         if ((iterations > 2000 && iterations < 4000) || (iterations > 7000 && iterations < 8000))
         {
@@ -538,6 +577,11 @@ int main(int, char **)
                 if (!hit)
                 {
                     hit = true;
+                    if (player.position.at(0) > 260 && player.position.at(0) < 580 &&
+                        player.position.at(1) > 570)
+                    {
+                        player.hp -= 30;
+                    }
                     player.hp -= 5;
                 }
             }
