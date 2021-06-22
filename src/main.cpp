@@ -9,13 +9,15 @@
 #include <map>
 
 /* GLOBAL VARIABLES */
-class Player;
 class Object;
+class Player;
+class Trap;
 bool check_obstacle_collision(Player player, std::vector<Object> obstacles);
 bool check_player_left_collision(Player player, std::vector<Object> obstacles);
 bool check_player_right_collision(Player player, std::vector<Object> obstacles);
 bool check_player_top_collision(Player player, std::vector<Object> obstacles);
 bool check_player_bottom_collision(Player player, std::vector<Object> obstacles);
+bool check_player_trap_collision(Player player, std::vector<Trap> traps);
 
 // screen size
 static const int WIDTH = 840;
@@ -197,10 +199,14 @@ public:
     void apply_intent()
     {
         acceleration = {0, 10};
-        if (move == "right") acceleration[0] += 1000;
-        if (move == "left") acceleration[0] += -1000;
-        if (move == "up") acceleration[1] += -4500;
-        if (move == "down") acceleration[1] += +1000;
+        if (move == "right")
+            acceleration[0] += 1000;
+        if (move == "left")
+            acceleration[0] += -1000;
+        if (move == "up")
+            acceleration[1] += -4500;
+        if (move == "down")
+            acceleration[1] += +1000;
         move = " ";
     }
 
@@ -221,19 +227,23 @@ public:
         auto new_position = position + new_velocity * dt_f + new_acceleration * dt_f * dt_f * 0.5;
         old_position = position;
         velocity = new_velocity;
-        if(velocity.at(0) < 0 && check_player_left_collision(*this, obstacles)){
+        if (velocity.at(0) < 0 && check_player_left_collision(*this, obstacles))
+        {
             velocity.at(0) = 0;
             new_position.at(0) = position.at(0);
         }
-        if(velocity.at(0) > 0 && check_player_right_collision(*this, obstacles)){
+        if (velocity.at(0) > 0 && check_player_right_collision(*this, obstacles))
+        {
             velocity.at(0) = 0;
             new_position.at(0) = position.at(0);
         }
-        if(velocity.at(1) < 0 && check_player_top_collision(*this, obstacles)){
+        if (velocity.at(1) < 0 && check_player_top_collision(*this, obstacles))
+        {
             velocity.at(1) = 0;
             new_position.at(1) = position.at(1);
         }
-        if(velocity.at(1) > 0 && check_player_bottom_collision(*this, obstacles)){
+        if (velocity.at(1) > 0 && check_player_bottom_collision(*this, obstacles))
+        {
             velocity.at(1) = 0;
             new_position.at(1) = position.at(1);
         }
@@ -254,6 +264,26 @@ public:
     }
 };
 
+class Trap : public Object
+{
+public:
+    Trap(int i_x, int i_y, int i_w, int i_h)
+        : Object(i_x, i_y, i_w, i_h)
+    {
+    }
+
+    void t_draw()
+    {
+        rect.x = position.at(0);
+        rect.y = position.at(1);
+        rect.w = size.at(0);
+        rect.h = size.at(1);
+        SDL_SetRenderDrawColor(renderer, 0X0F, 0X5F, 0X3F, 255);
+        SDL_RenderFillRect(renderer, &rect);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+};
+
 std::vector<Object> generate_obstacles()
 {
     std::vector<Object> obstacles;
@@ -264,6 +294,17 @@ std::vector<Object> generate_obstacles()
 
     return obstacles;
 }
+
+std::vector<Trap> generate_traps()
+{
+    std::vector<Trap> traps;
+    Trap trap1(0, 0, 30, 30);
+    traps.push_back(trap1);
+    Trap trap2(300, 50, 30, 30);
+    traps.push_back(trap2);
+    return traps;
+}
+
 void draw_obstacles(std::vector<Object> obstacles)
 {
     for (Object obstacle : obstacles)
@@ -272,7 +313,16 @@ void draw_obstacles(std::vector<Object> obstacles)
     }
 }
 
-bool check_player_left_collision(Player player, std::vector<Object> obstacles){
+void draw_traps(std::vector<Trap> traps)
+{
+    for (Trap trap : traps)
+    {
+        trap.t_draw();
+    }
+}
+
+bool check_player_left_collision(Player player, std::vector<Object> obstacles)
+{
     SDL_Rect left_rect;
     left_rect.x = player.position.at(0) - 5;
     left_rect.y = player.position.at(1);
@@ -292,17 +342,18 @@ bool check_player_left_collision(Player player, std::vector<Object> obstacles){
         }
     }
     return false;
-
 }
 
-bool check_player_right_collision(Player player, std::vector<Object> obstacles){
+bool check_player_right_collision(Player player, std::vector<Object> obstacles)
+{
     SDL_Rect right_rect;
     right_rect.x = player.position.at(0) + 5;
     right_rect.y = player.position.at(1);
     right_rect.w = player.size.at(0);
     right_rect.h = player.size.at(1);
 
-    if(right_rect.x + right_rect.w >= WIDTH){
+    if (right_rect.x + right_rect.w >= WIDTH)
+    {
         return true;
     }
 
@@ -314,17 +365,18 @@ bool check_player_right_collision(Player player, std::vector<Object> obstacles){
         }
     }
     return false;
-
 }
 
-bool check_player_top_collision(Player player, std::vector<Object> obstacles){
+bool check_player_top_collision(Player player, std::vector<Object> obstacles)
+{
     SDL_Rect top_rect;
     top_rect.x = player.position.at(0);
     top_rect.y = player.position.at(1) - 5;
     top_rect.w = player.size.at(0);
     top_rect.h = player.size.at(1);
 
-    if(top_rect.y == 0){
+    if (top_rect.y == 0)
+    {
         return true;
     }
 
@@ -338,14 +390,16 @@ bool check_player_top_collision(Player player, std::vector<Object> obstacles){
     return false;
 }
 
-bool check_player_bottom_collision(Player player, std::vector<Object> obstacles){
+bool check_player_bottom_collision(Player player, std::vector<Object> obstacles)
+{
     SDL_Rect bottom_rect;
     bottom_rect.x = player.position.at(0);
     bottom_rect.y = player.position.at(1) + 5;
     bottom_rect.w = player.size.at(0);
     bottom_rect.h = player.size.at(1);
 
-    if(bottom_rect.y + bottom_rect.h >= HEIGHT){
+    if (bottom_rect.y + bottom_rect.h >= HEIGHT)
+    {
         return true;
     }
 
@@ -359,35 +413,26 @@ bool check_player_bottom_collision(Player player, std::vector<Object> obstacles)
     return false;
 }
 
-
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-
-class Bullet : public Object
+bool check_player_trap_collision(Player player, std::vector<Trap> traps)
 {
-public:
-    int dmg;
-    Bullet(int i_x, int i_y, int i_w, int i_h, int i_dmg)
-        : Object(i_x, i_y, i_w, i_h)
-    {
-        dmg = i_dmg;
-    }
+    SDL_Rect player_rect;
+    player_rect.x = player.position.at(0);
+    player_rect.y = player.position.at(1);
+    player_rect.w = player.size.at(0);
+    player_rect.h = player.size.at(1);
 
-    void draw()
+    for (Trap trap : traps)
     {
-        rect.x = position.at(0);
-        rect.y = position.at(1);
-        rect.w = size.at(0);
-        rect.h = size.at(1);
-        SDL_SetRenderDrawColor(renderer, 0X0F, 0X5F, 0X3F, 255);
-        SDL_RenderFillRect(renderer, &rect);
-        SDL_RenderDrawRect(renderer, &rect);
+        if (SDL_HasIntersection(&player_rect, &trap.rect))
+        {
+            return true;
+        }
     }
-};
+    return false;
+}
+
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
+/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
 
 int main(int, char **)
 {
@@ -407,16 +452,37 @@ int main(int, char **)
 
     Player player(100, 150, 50, 50);
     std::vector<Object> obstacles = generate_obstacles();
+    std::vector<Trap> traps = generate_traps();
+    std::vector<Trap> show_traps = traps;
     std::chrono::milliseconds timer(15);
+    int iterations = 0;
+
+    bool hit = false;
+    int damage_cooldown = 0;
 
     while (running)
     {
+        iterations += 1;
+        if (iterations >= 10000)
+        {
+            iterations = 0;
+        }
+        if(hit)
+        {
+            damage_cooldown += 1;
+            if (damage_cooldown >= 1500)
+            {
+                damage_cooldown = 0;
+                hit = false;
+            }
+        }
+
         double dt_f = timer.count() / 1000.0;
-        // std::cout << player.acceleration.at(0) << std::endl;
-        // std::cout << player.acceleration.at(1) << std::endl;
+        std::cout << damage_cooldown << std::endl;
+        std::cout << hit << std::endl;
         // std::cout << std::endl;
-        std::cout << player.velocity.at(0) << std::endl;
-        std::cout << player.velocity.at(1) << std::endl;
+        // std::cout << player.velocity.at(0) << std::endl;
+        // std::cout << player.velocity.at(1) << std::endl;
         // std::cout << std::endl;
 
         while (SDL_PollEvent(&e) != 0)
@@ -447,9 +513,6 @@ int main(int, char **)
                 {
                     player.hp -= 5;
                 }
-                if(e.key.keysym.sym == SDLK_SPACE){
-                    player.velocity.at(1) -= 10;
-                }
             }
         }
         // clears the renderer
@@ -466,6 +529,24 @@ int main(int, char **)
             running = false;
         draw_obstacles(obstacles);
         player.apply_intent();
+        if ((iterations > 2000 && iterations < 4000) || (iterations > 7000 && iterations < 8000))
+        {
+            show_traps = traps;
+            draw_traps(show_traps);
+            if (check_player_trap_collision(player, traps))
+            {
+                if (!hit)
+                {
+                    hit = true;
+                    player.hp -= 5;
+                }
+            }
+        }
+        else
+        {
+            show_traps.clear();
+        }
+
         player.update(dt_f, obstacles);
         player.p_draw();
 
