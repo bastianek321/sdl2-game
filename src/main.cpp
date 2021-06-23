@@ -29,10 +29,6 @@ void draw_win_tile()
     SDL_RenderDrawRect(game.renderer, &win_rect);
 }
 
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT */
-/* ABOVE ARE DONE AND WORKING GREAT ABOVE ARE DONE AND WORKING GREAT AB
-OVE ARE DONE AND WORKING GREAT */
-
 int main(int, char **)
 {
    
@@ -135,7 +131,7 @@ int main(int, char **)
                     if (player.position.at(0) > 260 && player.position.at(0) < 580 &&
                         player.position.at(1) > 570)
                     {
-                        player.hp -= 30;
+                        player.hp -= 20;
                     }
                     player.hp -= 5;
                 }
